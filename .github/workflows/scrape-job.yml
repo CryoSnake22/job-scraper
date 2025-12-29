@@ -1,0 +1,60 @@
+name: Scrape LinkedIn Job
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_url:
+        description: "LinkedIn Job URL or Job ID"
+        required: true
+        type: string
+  repository_dispatch:
+    types: [scrape-job]
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    outputs:
+      job_title: ${{ steps.scrape.outputs.job_title }}
+      company: ${{ steps.scrape.outputs.company }}
+      location: ${{ steps.scrape.outputs.location }}
+      job_id: ${{ steps.scrape.outputs.job_id }}
+      url: ${{ steps.scrape.outputs.url }}
+      description: ${{ steps.scrape.outputs.description }}
+      json: ${{ steps.scrape.outputs.json }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install axios cheerio
+
+      - name: Scrape LinkedIn job
+        id: scrape
+        run: |
+          JOB_URL="${{ github.event.inputs.job_url || github.event.client_payload.job_url }}"
+          node script.js "$JOB_URL"
+
+      - name: Upload job description artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: job-data
+          path: |
+            job-*.txt
+            job-*.json
+          retention-days: 7
+
+      - name: Output summary
+        run: |
+          echo "### Job Scraping Complete! ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Title:** ${{ steps.scrape.outputs.job_title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Company:** ${{ steps.scrape.outputs.company }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Location:** ${{ steps.scrape.outputs.location }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Job ID:** ${{ steps.scrape.outputs.job_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.scrape.outputs.url }}" >> $GITHUB_STEP_SUMMARY
